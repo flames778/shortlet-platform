@@ -9,11 +9,15 @@
     <title>User Dashboard - Shortlet</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f7f8fb; min-width: 1200px; }
+        body { background: #f7f8fb; min-width: 1200px; color: #152033; }
         .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: #16c79a; display: inline-grid; place-items: center; color: #041221; font-weight: 800; }
         .page-band { background: #071827; color: white; }
-        .property-img { height: 180px; object-fit: cover; }
-        .booking-form { background: #f7f8fb; border-radius: 8px; }
+        .property-card { overflow: hidden; border-radius: 12px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .property-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important; }
+        .property-img { height: 190px; object-fit: cover; }
+        .booking-form { background: #f8f9fa; border-radius: 8px; }
+        .btn-success { background: #16c79a; border-color: #16c79a; color: #041221; font-weight: 600; }
+        .btn-success:hover { background: #13b58c; border-color: #13b58c; color: #041221; }
     </style>
 </head>
 <body>
@@ -43,93 +47,117 @@
         <div class="alert alert-danger shadow-sm">${error}</div>
     </c:if>
     <div class="row g-4">
-        <div class="col-lg-7">
+        <!-- Search Properties Section (Left, wider column) -->
+        <div class="col-lg-8">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2 class="h4 fw-bold mb-0">My bookings</h2>
-                <span class="badge text-bg-success">${bookings.size()} total</span>
+                <h2 class="h4 fw-bold mb-0">Search properties</h2>
+                <form class="d-flex gap-2 mb-0" action="/dashboard" method="get" style="max-width: 400px; width: 100%;">
+                    <input class="form-control" type="search" name="city" value="${city}" placeholder="Try Lagos, Abuja, Ibadan, Kano">
+                    <button class="btn btn-dark" type="submit">Search</button>
+                </form>
             </div>
-            <div class="table-responsive bg-white shadow-sm rounded">
-                <table class="table align-middle mb-0">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Apartment</th>
-                        <th>City</th>
-                        <th>Check-in</th>
-                        <th>Check-out</th>
-                        <th>Total</th>
-                        <th>Payment</th>
-                        <th>Status</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <c:forEach var="booking" items="${bookings}">
-                        <tr>
-                            <td class="fw-semibold">${booking.apartmentTitle}</td>
-                            <td>${booking.city}</td>
-                            <td>${booking.checkIn}</td>
-                            <td>${booking.checkOut}</td>
-                            <td>&#8358;${booking.totalAmount}</td>
-                            <td>${booking.paymentMethod}</td>
-                            <td><span class="badge text-bg-${booking.status == 'CONFIRMED' ? 'success' : 'warning'}">${booking.status}</span></td>
-                        </tr>
-                    </c:forEach>
-                    <c:if test="${empty bookings}">
-                        <tr><td colspan="7" class="text-center text-secondary py-4">No bookings yet.</td></tr>
-                    </c:if>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="col-lg-5">
-            <h2 class="h4 fw-bold mb-3">Search properties</h2>
-            <form class="d-flex gap-2 mb-3" action="/dashboard" method="get">
-                <input class="form-control" type="search" name="city" value="${city}" placeholder="Try Lagos, Abuja, Ibadan, Kano">
-                <button class="btn btn-dark" type="submit">Search</button>
-            </form>
             <div class="row g-3">
                 <c:forEach var="property" items="${properties}">
-                    <div class="col-12">
-                        <div class="card border-0 shadow-sm">
+                    <div class="col-md-6">
+                        <div class="card property-card border-0 shadow-sm h-100">
                             <img class="card-img-top property-img" src="${property.imageUrl}" alt="${property.title}">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between gap-3">
-                                    <div>
-                                        <h3 class="h5 fw-bold">${property.title}</h3>
-                                        <p class="text-secondary mb-0">${property.address}</p>
+                            <div class="card-body d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                        <h3 class="h5 fw-bold mb-0">${property.title}</h3>
+                                        <div class="text-end fw-bold text-success">&#8358;${property.nightlyRate}<span class="d-block text-secondary fw-normal small">/ night</span></div>
                                     </div>
-                                    <div class="text-end fw-bold">&#8358;${property.nightlyRate}<span class="d-block text-secondary fw-normal small">per night</span></div>
+                                    <p class="text-secondary small mb-3">${property.address}</p>
                                 </div>
-                                <form class="booking-form p-3 mt-3" method="post" action="/dashboard">
-                                    <input type="hidden" name="propertyId" value="${property.id}">
-                                    <div class="row g-2">
-                                        <div class="col-sm-6">
-                                            <label class="form-label small fw-semibold">Check-in</label>
-                                            <input class="form-control" type="date" name="checkIn" required>
-                                        </div>
-                                        <div class="col-sm-6">
-                                            <label class="form-label small fw-semibold">Check-out</label>
-                                            <input class="form-control" type="date" name="checkOut" required>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label small fw-semibold">Payment method</label>
-                                            <select class="form-select" name="paymentMethod" required>
-                                                <option value="CARD">Card</option>
-                                                <option value="BANK_TRANSFER">Bank transfer</option>
-                                                <option value="USSD">USSD</option>
-                                                <option value="PAY_ON_ARRIVAL">Pay on arrival</option>
-                                            </select>
-                                        </div>
+                                <div>
+                                    <button class="btn btn-success w-100 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#bookingForm-${property.id}" aria-expanded="false" aria-controls="bookingForm-${property.id}">
+                                        Book apartment
+                                    </button>
+                                    
+                                    <div class="collapse" id="bookingForm-${property.id}">
+                                        <form class="booking-form p-3 mt-3 border bg-light" method="post" action="/dashboard">
+                                            <input type="hidden" name="propertyId" value="${property.id}">
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <label class="form-label small fw-semibold">Check-in</label>
+                                                    <input class="form-control" type="date" name="checkIn" required>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label class="form-label small fw-semibold">Check-out</label>
+                                                    <input class="form-control" type="date" name="checkOut" required>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small fw-semibold">Payment method</label>
+                                                    <select class="form-select" name="paymentMethod" required>
+                                                        <option value="CARD">Card</option>
+                                                        <option value="BANK_TRANSFER">Bank transfer</option>
+                                                        <option value="USSD">USSD</option>
+                                                        <option value="PAY_ON_ARRIVAL">Pay on arrival</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-dark w-100 mt-3" type="submit">Confirm Booking</button>
+                                            <c:if test="${not empty property.sourceUrl}">
+                                                <a class="small d-inline-block mt-2 text-secondary" href="${property.sourceUrl}" target="_blank" rel="noopener">Listing reference</a>
+                                            </c:if>
+                                        </form>
                                     </div>
-                                    <button class="btn btn-success w-100 mt-3" type="submit">Book apartment</button>
-                                    <c:if test="${not empty property.sourceUrl}">
-                                        <a class="small d-inline-block mt-2 text-secondary" href="${property.sourceUrl}" target="_blank" rel="noopener">Listing reference</a>
-                                    </c:if>
-                                </form>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </c:forEach>
+                <c:if test="${empty properties}">
+                    <div class="col-12">
+                        <div class="text-center text-secondary py-5 bg-white rounded shadow-sm">
+                            <p class="mb-0">No properties found matching "${city}".</p>
+                        </div>
+                    </div>
+                </c:if>
+            </div>
+        </div>
+
+        <!-- My Bookings Section (Right, sidebar column) -->
+        <div class="col-lg-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h4 fw-bold mb-0">My bookings</h2>
+                <span class="badge bg-success rounded-pill px-3">${bookings.size()} total</span>
+            </div>
+            
+            <div class="d-flex flex-column gap-3">
+                <c:forEach var="booking" items="${bookings}">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+                                <h3 class="h6 fw-bold mb-0 text-truncate" style="max-width: 180px;">${booking.apartmentTitle}</h3>
+                                <span class="badge text-bg-${booking.status == 'CONFIRMED' ? 'success' : 'warning'}">${booking.status}</span>
+                            </div>
+                            <p class="text-secondary small mb-3">${booking.city}</p>
+                            
+                            <div class="row g-2 border-top pt-2 text-secondary small">
+                                <div class="col-6">
+                                    <span class="d-block fw-semibold text-dark">Check-in</span>
+                                    ${booking.checkIn}
+                                </div>
+                                <div class="col-6">
+                                    <span class="d-block fw-semibold text-dark">Check-out</span>
+                                    ${booking.checkOut}
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                                <span class="text-secondary small font-monospace">${booking.paymentMethod}</span>
+                                <span class="fw-bold text-success">&#8358;${booking.totalAmount}</span>
+                            </div>
+                        </div>
+                    </div>
+                </c:forEach>
+                <c:if test="${empty bookings}">
+                    <div class="text-center text-secondary py-5 bg-white rounded shadow-sm">
+                        <p class="mb-0 small fw-semibold">No bookings yet.</p>
+                        <p class="mb-0 text-muted small">Choose an apartment to get started!</p>
+                    </div>
+                </c:if>
             </div>
         </div>
     </div>
@@ -138,5 +166,6 @@
 <footer class="py-4 bg-white border-top">
     <div class="container text-secondary small">Shortlet &copy; 2026</div>
 </footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
