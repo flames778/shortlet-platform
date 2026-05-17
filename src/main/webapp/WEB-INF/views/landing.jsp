@@ -3,11 +3,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=1200">
     <title>Shortlet - Stay where the city happens</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f7f8fb; color: #152033; }
+        body { background: #f7f8fb; color: #152033; min-width: 1200px; }
         .hero {
             min-height: 86vh;
             background: linear-gradient(90deg, rgba(4, 18, 33, .84), rgba(4, 18, 33, .38)),
