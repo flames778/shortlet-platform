@@ -178,4 +178,291 @@ public class BookingService {
         }
         return bookings;
     }
+
+    public List<Property> searchPropertiesWithFilters(String city, Double maxPrice, Boolean wifi, Boolean selfCheckIn, Boolean nearAirport, String sortBy, Long currentUserId) throws SQLException {
+        List<Property> properties = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT p.*, ");
+        sql.append(" (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted, ");
+        sql.append(" (SELECT COUNT(*) FROM property_views pv WHERE pv.property_id = p.id AND pv.viewed_at >= DATEADD('MINUTE', -30, NOW())) AS view_count ");
+        sql.append(" FROM properties p WHERE 1=1 ");
+        
+        List<Object> params = new ArrayList<>();
+        params.add(currentUserId);
+        
+        if (city != null && !city.isBlank()) {
+            sql.append(" AND LOWER(p.city) LIKE ? ");
+            params.add("%" + city.toLowerCase() + "%");
+        }
+        if (maxPrice != null) {
+            sql.append(" AND p.nightly_rate <= ? ");
+            params.add(BigDecimal.valueOf(maxPrice));
+        }
+        if (wifi != null && wifi) {
+            sql.append(" AND p.wifi = TRUE ");
+        }
+        if (selfCheckIn != null && selfCheckIn) {
+            sql.append(" AND p.self_check_in = TRUE ");
+        }
+        if (nearAirport != null && nearAirport) {
+            sql.append(" AND p.near_airport = TRUE ");
+        }
+        
+        if (sortBy != null) {
+            switch (sortBy) {
+                case "price_asc" -> sql.append(" ORDER BY p.nightly_rate ASC ");
+                case "price_desc" -> sql.append(" ORDER BY p.nightly_rate DESC ");
+                case "rating" -> sql.append(" ORDER BY p.rating DESC ");
+                default -> sql.append(" ORDER BY p.nightly_rate ASC ");
+            }
+        } else {
+            sql.append(" ORDER BY p.nightly_rate ASC ");
+        }
+        
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                statement.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    Property property = mapProperty(rs);
+                    property.setIsWishlisted(rs.getInt("is_wishlisted") > 0);
+                    property.setUrgencyViews(rs.getInt("view_count"));
+                    property.setImages(getPropertyImages(property.getId()));
+                    properties.add(property);
+                }
+            }
+        }
+        return properties;
+    }
+
+    private Property mapProperty(ResultSet rs) throws SQLException {
+        Property property = new Property();
+        property.setId(rs.getLong("id"));
+        property.setTitle(rs.getString("title"));
+        property.setCity(rs.getString("city"));
+        property.setAddress(rs.getString("address"));
+        property.setNightlyRate(rs.getBigDecimal("nightly_rate"));
+        property.setImageUrl(rs.getString("image_url"));
+        property.setSourceUrl(rs.getString("source_url"));
+        property.setLatitude(rs.getDouble("latitude"));
+        property.setLongitude(rs.getDouble("longitude"));
+        property.setWifi(rs.getBoolean("wifi"));
+        property.setSelfCheckIn(rs.getBoolean("self_check_in"));
+        property.setNearAirport(rs.getBoolean("near_airport"));
+        property.setReplyTimeMinutes(rs.getInt("reply_time_minutes"));
+        property.setRating(rs.getDouble("rating"));
+        return property;
+    }
+
+    public List<String> getPropertyImages(long propertyId) throws SQLException {
+        List<String> images = new ArrayList<>();
+        String sql = "SELECT image_url FROM property_images WHERE property_id = ?";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, propertyId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    images.add(rs.getString("image_url"));
+                }
+            }
+        }
+        return images;
+    }
+
+    public List<Property> getRecommendations(long userId) throws SQLException {
+        String city = "Lagos"; // fallback city
+        BigDecimal avgPrice = BigDecimal.valueOf(150000.00); // fallback price range center
+        
+        // Query search history for the user's latest search
+        String historySql = "SELECT city FROM search_history WHERE user_id = ? ORDER BY searched_at DESC LIMIT 1";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(historySql)) {
+            statement.setLong(1, userId);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next()) {
+                    city = rs.getString("city");
+                }
+            }
+        }
+        
+        // Get user's average booked price or current properties in that city
+        String avgPriceSql = """
+            SELECT AVG(p.nightly_rate) AS avg_rate 
+            FROM bookings b 
+            JOIN properties p ON p.id = b.property_id 
+            WHERE b.user_id = ?
+            """;
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(avgPriceSql)) {
+            statement.setLong(1, userId);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next() && rs.getBigDecimal("avg_rate") != null) {
+                    avgPrice = rs.getBigDecimal("avg_rate");
+                }
+            }
+        }
+        
+        // Now search properties in the latest city with price range within ±20%
+        BigDecimal minPrice = avgPrice.multiply(BigDecimal.valueOf(0.8));
+        BigDecimal maxPrice = avgPrice.multiply(BigDecimal.valueOf(1.2));
+        
+        List<Property> recommended = new ArrayList<>();
+        String recSql = """
+            SELECT p.*,
+                   (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted
+            FROM properties p
+            WHERE LOWER(p.city) = LOWER(?) AND p.nightly_rate BETWEEN ? AND ?
+            LIMIT 3
+            """;
+        
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(recSql)) {
+            statement.setLong(1, userId);
+            statement.setString(2, city);
+            statement.setBigDecimal(3, minPrice);
+            statement.setBigDecimal(4, maxPrice);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    Property property = mapProperty(rs);
+                    property.setIsWishlisted(rs.getInt("is_wishlisted") > 0);
+                    property.setImages(getPropertyImages(property.getId()));
+                    recommended.add(property);
+                }
+            }
+        }
+        
+        // If we found fewer than 3, fill it up with properties from other categories or other cities within matching price
+        if (recommended.size() < 3) {
+            StringBuilder fallbackSql = new StringBuilder();
+            fallbackSql.append("SELECT p.*, ");
+            fallbackSql.append("       (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted ");
+            fallbackSql.append("FROM properties p ");
+            fallbackSql.append("WHERE p.id NOT IN (0 ");
+            for (Property r : recommended) {
+                fallbackSql.append(", ").append(r.getId());
+            }
+            fallbackSql.append(") LIMIT ?");
+
+            try (Connection connection = DatabaseUtil.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(fallbackSql.toString())) {
+                statement.setLong(1, userId);
+                statement.setInt(2, 3 - recommended.size());
+                try (ResultSet rs = statement.executeQuery()) {
+                    while (rs.next()) {
+                        Property property = mapProperty(rs);
+                        property.setIsWishlisted(rs.getInt("is_wishlisted") > 0);
+                        property.setImages(getPropertyImages(property.getId()));
+                        recommended.add(property);
+                    }
+                }
+            }
+        }
+        
+        return recommended;
+    }
+
+    public boolean toggleWishlist(long userId, long propertyId) throws SQLException {
+        boolean exists = false;
+        String checkSql = "SELECT COUNT(*) FROM wishlist WHERE user_id = ? AND property_id = ?";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(checkSql)) {
+            statement.setLong(1, userId);
+            statement.setLong(2, propertyId);
+            try (ResultSet rs = statement.executeQuery()) {
+                rs.next();
+                exists = rs.getInt(1) > 0;
+            }
+        }
+        
+        try (Connection connection = DatabaseUtil.getConnection()) {
+            if (exists) {
+                String deleteSql = "DELETE FROM wishlist WHERE user_id = ? AND property_id = ?";
+                try (PreparedStatement statement = connection.prepareStatement(deleteSql)) {
+                    statement.setLong(1, userId);
+                    statement.setLong(2, propertyId);
+                    statement.executeUpdate();
+                }
+                return false;
+            } else {
+                String insertSql = "INSERT INTO wishlist(user_id, property_id) VALUES (?, ?)";
+                try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
+                    statement.setLong(1, userId);
+                    statement.setLong(2, propertyId);
+                    statement.executeUpdate();
+                }
+                return true;
+            }
+        }
+    }
+
+    public List<Property> getWishlistedProperties(long userId) throws SQLException {
+        List<Property> properties = new ArrayList<>();
+        String sql = """
+            SELECT p.*,
+                   (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted
+            FROM wishlist w
+            JOIN properties p ON p.id = w.property_id
+            WHERE w.user_id = ?
+            """;
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, userId);
+            statement.setLong(2, userId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    Property property = mapProperty(rs);
+                    property.setIsWishlisted(true);
+                    property.setImages(getPropertyImages(property.getId()));
+                    properties.add(property);
+                }
+            }
+        }
+        return properties;
+    }
+
+    public void recordPropertyView(long propertyId) throws SQLException {
+        String sql = "INSERT INTO property_views(property_id) VALUES (?)";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, propertyId);
+            statement.executeUpdate();
+        }
+    }
+
+    public List<String> getSearchSuggestions(String query) throws SQLException {
+        List<String> suggestions = new ArrayList<>();
+        if (query == null || query.isBlank()) {
+            return suggestions;
+        }
+        String sql = """
+            SELECT DISTINCT city AS suggestion FROM properties WHERE LOWER(city) LIKE ?
+            UNION
+            SELECT DISTINCT address AS suggestion FROM properties WHERE LOWER(address) LIKE ?
+            LIMIT 5
+            """;
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            String filter = "%" + query.toLowerCase() + "%";
+            statement.setString(1, filter);
+            statement.setString(2, filter);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString("suggestion"));
+                }
+            }
+        }
+        return suggestions;
+    }
+
+    public void recordSearchHistory(long userId, String city) throws SQLException {
+        if (city == null || city.isBlank()) return;
+        String sql = "INSERT INTO search_history(user_id, city) VALUES (?, ?)";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, userId);
+            statement.setString(2, city);
+            statement.executeUpdate();
+        }
+    }
 }

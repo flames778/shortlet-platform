@@ -9,6 +9,9 @@ import com.shortlet.servlet.LandingServlet;
 import com.shortlet.servlet.LoginServlet;
 import com.shortlet.servlet.LogoutServlet;
 import com.shortlet.servlet.UserDashboardServlet;
+import com.shortlet.servlet.PropertyMarkersServlet;
+import com.shortlet.servlet.SearchSuggestionServlet;
+import com.shortlet.servlet.WishlistToggleServlet;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.startup.Tomcat;
@@ -43,9 +46,13 @@ public class TomcatEmbeddedServer {
         addServlet(context, "exportExcel", new ExportExcelServlet(), "/admin/export.xlsx");
         addServlet(context, "logout", new LogoutServlet(), "/logout");
         addServlet(context, "error", new ErrorServlet(), "/error");
+        addServlet(context, "propertyMarkers", new PropertyMarkersServlet(), "/api/properties/markers");
+        addServlet(context, "searchSuggestion", new SearchSuggestionServlet(), "/api/search/suggest");
+        addServlet(context, "wishlistToggle", new WishlistToggleServlet(), "/wishlist/toggle");
 
         context.addFilterDef(AuthenticationFilter.definition());
         context.addFilterMap(AuthenticationFilter.map("/dashboard"));
+        context.addFilterMap(AuthenticationFilter.map("/wishlist/toggle"));
         context.addFilterMap(AuthenticationFilter.map("/admin"));
         context.addFilterMap(AuthenticationFilter.map("/admin/*"));
 
