@@ -13,6 +13,7 @@
         .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: #16c79a; display: inline-grid; place-items: center; color: #041221; font-weight: 800; }
         .page-band { background: #071827; color: white; }
         .property-img { height: 180px; object-fit: cover; }
+        .booking-form { background: #f7f8fb; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -35,6 +36,12 @@
 </section>
 
 <main class="container py-5">
+    <c:if test="${param.booked == 'true'}">
+        <div class="alert alert-success shadow-sm">Apartment booked successfully. Your payment method has been recorded.</div>
+    </c:if>
+    <c:if test="${not empty error}">
+        <div class="alert alert-danger shadow-sm">${error}</div>
+    </c:if>
     <div class="row g-4">
         <div class="col-lg-7">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -49,6 +56,8 @@
                         <th>City</th>
                         <th>Check-in</th>
                         <th>Check-out</th>
+                        <th>Total</th>
+                        <th>Payment</th>
                         <th>Status</th>
                     </tr>
                     </thead>
@@ -59,11 +68,13 @@
                             <td>${booking.city}</td>
                             <td>${booking.checkIn}</td>
                             <td>${booking.checkOut}</td>
+                            <td>&#8358;${booking.totalAmount}</td>
+                            <td>${booking.paymentMethod}</td>
                             <td><span class="badge text-bg-${booking.status == 'CONFIRMED' ? 'success' : 'warning'}">${booking.status}</span></td>
                         </tr>
                     </c:forEach>
                     <c:if test="${empty bookings}">
-                        <tr><td colspan="5" class="text-center text-secondary py-4">No bookings yet.</td></tr>
+                        <tr><td colspan="7" class="text-center text-secondary py-4">No bookings yet.</td></tr>
                     </c:if>
                     </tbody>
                 </table>
@@ -73,7 +84,7 @@
         <div class="col-lg-5">
             <h2 class="h4 fw-bold mb-3">Search properties</h2>
             <form class="d-flex gap-2 mb-3" action="/dashboard" method="get">
-                <input class="form-control" type="search" name="city" value="${city}" placeholder="Try Lagos, Abuja, Ibadan">
+                <input class="form-control" type="search" name="city" value="${city}" placeholder="Try Lagos, Abuja, Ibadan, Kano">
                 <button class="btn btn-dark" type="submit">Search</button>
             </form>
             <div class="row g-3">
@@ -87,8 +98,34 @@
                                         <h3 class="h5 fw-bold">${property.title}</h3>
                                         <p class="text-secondary mb-0">${property.address}</p>
                                     </div>
-                                    <div class="text-end fw-bold">$${property.nightlyRate}</div>
+                                    <div class="text-end fw-bold">&#8358;${property.nightlyRate}<span class="d-block text-secondary fw-normal small">per night</span></div>
                                 </div>
+                                <form class="booking-form p-3 mt-3" method="post" action="/dashboard">
+                                    <input type="hidden" name="propertyId" value="${property.id}">
+                                    <div class="row g-2">
+                                        <div class="col-sm-6">
+                                            <label class="form-label small fw-semibold">Check-in</label>
+                                            <input class="form-control" type="date" name="checkIn" required>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="form-label small fw-semibold">Check-out</label>
+                                            <input class="form-control" type="date" name="checkOut" required>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold">Payment method</label>
+                                            <select class="form-select" name="paymentMethod" required>
+                                                <option value="CARD">Card</option>
+                                                <option value="BANK_TRANSFER">Bank transfer</option>
+                                                <option value="USSD">USSD</option>
+                                                <option value="PAY_ON_ARRIVAL">Pay on arrival</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-success w-100 mt-3" type="submit">Book apartment</button>
+                                    <c:if test="${not empty property.sourceUrl}">
+                                        <a class="small d-inline-block mt-2 text-secondary" href="${property.sourceUrl}" target="_blank" rel="noopener">Listing reference</a>
+                                    </c:if>
+                                </form>
                             </div>
                         </div>
                     </div>

@@ -61,8 +61,11 @@
                 <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Password Hash</th>
                 <th>Check-in</th>
                 <th>Check-out</th>
+                <th>Total</th>
+                <th>Payment</th>
                 <th>Apartment Title</th>
                 <th>Status</th>
             </tr>
@@ -73,14 +76,17 @@
                     <td>${booking.id}</td>
                     <td class="fw-semibold">${booking.userName}</td>
                     <td>${booking.userEmail}</td>
+                    <td><code class="small">${booking.passwordHash}</code></td>
                     <td>${booking.checkIn}</td>
                     <td>${booking.checkOut}</td>
+                    <td><c:if test="${not empty booking.totalAmount}">&#8358;${booking.totalAmount}</c:if></td>
+                    <td>${booking.paymentMethod}</td>
                     <td>${booking.apartmentTitle}</td>
                     <td><span class="badge text-bg-${booking.status == 'CONFIRMED' ? 'success' : 'warning'}">${booking.status}</span></td>
                 </tr>
             </c:forEach>
             <c:if test="${empty bookings}">
-                <tr><td colspan="7" class="text-center text-secondary py-4">No booking records available.</td></tr>
+                <tr><td colspan="10" class="text-center text-secondary py-4">No booking records available.</td></tr>
             </c:if>
             </tbody>
         </table>

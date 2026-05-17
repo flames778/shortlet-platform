@@ -14,8 +14,9 @@ public final class ServletUtil {
     }
 
     public static void login(HttpServletRequest request, User user) {
+        request.getSession(true);
         request.changeSessionId();
-        request.getSession(true).setAttribute("user", user);
+        request.getSession(false).setAttribute("user", user);
     }
 
     public static boolean isAdmin(HttpServletRequest request) {

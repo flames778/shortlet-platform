@@ -48,7 +48,8 @@ public class AppStartupListener implements ServletContextListener {
                         city VARCHAR(80) NOT NULL,
                         address VARCHAR(240) NOT NULL,
                         nightly_rate DECIMAL(12, 2) NOT NULL,
-                        image_url VARCHAR(500)
+                        image_url VARCHAR(500),
+                        source_url VARCHAR(500)
                     )
                     """);
             statement.execute("""
@@ -58,34 +59,123 @@ public class AppStartupListener implements ServletContextListener {
                         property_id BIGINT NOT NULL,
                         check_in DATE NOT NULL,
                         check_out DATE NOT NULL,
+                        nights INT DEFAULT 1,
+                        total_amount DECIMAL(12, 2) DEFAULT 0,
+                        payment_method VARCHAR(40) DEFAULT 'PAY_ON_ARRIVAL',
+                        payment_status VARCHAR(30) DEFAULT 'PENDING',
                         status VARCHAR(30) NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         CONSTRAINT fk_booking_user FOREIGN KEY (user_id) REFERENCES users(id),
                         CONSTRAINT fk_booking_property FOREIGN KEY (property_id) REFERENCES properties(id)
                     )
+                    """);
+            addColumnIfMissing(statement, "properties", "source_url", "VARCHAR(500)");
+            addColumnIfMissing(statement, "bookings", "nights", "INT DEFAULT 1");
+            addColumnIfMissing(statement, "bookings", "total_amount", "DECIMAL(12, 2) DEFAULT 0");
+            addColumnIfMissing(statement, "bookings", "payment_method", "VARCHAR(40) DEFAULT 'PAY_ON_ARRIVAL'");
+            addColumnIfMissing(statement, "bookings", "payment_status", "VARCHAR(30) DEFAULT 'PENDING'");
+            addColumnIfMissing(statement, "bookings", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+            statement.execute("""
+                    UPDATE bookings b
+                    SET nights = DATEDIFF('DAY', b.check_in, b.check_out)
+                    WHERE nights IS NULL OR nights <= 0
+                    """);
+            statement.execute("""
+                    UPDATE bookings b
+                    SET total_amount = (
+                        SELECT p.nightly_rate * b.nights FROM properties p WHERE p.id = b.property_id
+                    )
+                    WHERE total_amount IS NULL OR total_amount = 0
                     """);
         }
     }
 
     private void seedData(Connection connection) throws SQLException {
-        if (hasRows(connection, "users")) {
-            return;
+        if (!hasRows(connection, "users")) {
+            insertUser(connection, "Admin Manager", "admin@shortlet.com", "admin123", "ADMIN");
+            insertUser(connection, "Ada Johnson", "ada@example.com", "password123", "USER");
+            insertUser(connection, "Tunde Martins", "tunde@example.com", "password123", "USER");
         }
-        insertUser(connection, "Admin Manager", "admin@shortlet.com", "admin123", "ADMIN");
-        insertUser(connection, "Ada Johnson", "ada@example.com", "password123", "USER");
-        insertUser(connection, "Tunde Martins", "tunde@example.com", "password123", "USER");
 
-        insertProperty(connection, "Skyline Studio", "Lagos", "Victoria Island, Lagos", "115.00",
-                "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80");
-        insertProperty(connection, "Garden Loft", "Abuja", "Maitama, Abuja", "145.00",
-                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80");
-        insertProperty(connection, "Marina Apartment", "Lagos", "Lekki Phase 1, Lagos", "180.00",
-                "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80");
-        insertProperty(connection, "Quiet City Suite", "Ibadan", "Bodija, Ibadan", "75.00",
-                "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80");
+        insertPropertyIfMissing(connection, "Luxury 2br in Ikeja With Pool and Gym", "Lagos", "Alausa, Ikeja, Lagos", "140000.00",
+                "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/lagos/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Luxury 3 Bedroom in Oniru VI", "Lagos", "Oniru, Victoria Island, Lagos", "250000.00",
+                "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/lagos/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Fully Furnished 1 Bedroom Lagos Island", "Lagos", "Lagos Island, Lagos", "150000.00",
+                "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/lagos-island-west/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Exquisite 3 Bedroom Old Ikoyi", "Lagos", "Old Ikoyi, Lagos", "270000.00",
+                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/lagos-island-west/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Luxury 2 Bedroom Wuse 2", "Abuja", "Wuse 2, Abuja", "160000.00",
+                "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/abuja/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Serviced Studio Katampe Extension", "Abuja", "Katampe Extension, Abuja", "90000.00",
+                "https://images.unsplash.com/photo-1560185127-6ed189bf02f4?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/katampe-extension/temporary-and-vacation-rentals/serviced-and-fully-furnished-studio-apartment-oOooWU41JINQpOG2B5RYUREw.html");
+        insertPropertyIfMissing(connection, "Jahi 2 Bedroom Shortlet", "Abuja", "Jahi Gilmore, Abuja", "90000.00",
+                "https://images.unsplash.com/photo-1560448075-bb485b067938?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/abuja/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Kubwa Affordable Apartment", "Abuja", "Kubwa, Abuja", "40000.00",
+                "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/abuja/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Quiet City Suite Bodija", "Ibadan", "Bodija, Ibadan", "75000.00",
+                "https://images.unsplash.com/photo-1560448204-603b3fc33ddc?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/oyo/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "GRA Serviced Apartment", "Port Harcourt", "Old GRA, Port Harcourt", "85000.00",
+                "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/rivers/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Independence Layout Apartment", "Enugu", "Independence Layout, Enugu", "65000.00",
+                "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/enugu/temporary-and-vacation-rentals");
+        insertPropertyIfMissing(connection, "Kano City Furnished Flat", "Kano", "Nassarawa GRA, Kano", "55000.00",
+                "https://images.unsplash.com/photo-1560184897-ae75f418493e?auto=format&fit=crop&w=900&q=80",
+                "https://jiji.ng/kano/temporary-and-vacation-rentals");
+        migrateLegacyPropertyData(connection);
 
-        insertBooking(connection, 2, 1, "2026-06-02", "2026-06-06", "CONFIRMED");
-        insertBooking(connection, 2, 3, "2026-07-12", "2026-07-15", "PENDING");
-        insertBooking(connection, 3, 2, "2026-06-20", "2026-06-24", "CONFIRMED");
+        if (!hasRows(connection, "bookings")) {
+            insertBooking(connection, 2, propertyId(connection, "Luxury 2br in Ikeja With Pool and Gym"), "2026-06-02", "2026-06-06", "CARD", "PAID", "CONFIRMED");
+            insertBooking(connection, 2, propertyId(connection, "Luxury 3 Bedroom in Oniru VI"), "2026-07-12", "2026-07-15", "BANK_TRANSFER", "PENDING", "RESERVED");
+            insertBooking(connection, 3, propertyId(connection, "Luxury 2 Bedroom Wuse 2"), "2026-06-20", "2026-06-24", "PAY_ON_ARRIVAL", "PENDING", "RESERVED");
+        }
+    }
+
+    private void migrateLegacyPropertyData(Connection connection) throws SQLException {
+        updateProperty(connection, "Skyline Studio", "Skyline Studio Ikeja", "Lagos", "Alausa, Ikeja, Lagos", "140000.00",
+                "https://jiji.ng/lagos/temporary-and-vacation-rentals");
+        updateProperty(connection, "Garden Loft", "Luxury 2 Bedroom Wuse 2", "Abuja", "Wuse 2, Abuja", "160000.00",
+                "https://jiji.ng/abuja/temporary-and-vacation-rentals");
+        updateProperty(connection, "Marina Apartment", "Luxury 3 Bedroom in Oniru VI", "Lagos", "Oniru, Victoria Island, Lagos", "250000.00",
+                "https://jiji.ng/lagos/temporary-and-vacation-rentals");
+        updateProperty(connection, "Quiet City Suite", "Quiet City Suite Bodija", "Ibadan", "Bodija, Ibadan", "75000.00",
+                "https://jiji.ng/oyo/temporary-and-vacation-rentals");
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    UPDATE bookings b
+                    SET total_amount = (
+                        SELECT p.nightly_rate * b.nights FROM properties p WHERE p.id = b.property_id
+                    )
+                    """);
+        }
+    }
+
+    private void updateProperty(Connection connection, String oldTitle, String newTitle, String city, String address, String nightlyRate, String sourceUrl) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE properties SET title = ?, city = ?, address = ?, nightly_rate = ?, source_url = ? WHERE title = ?")) {
+            statement.setString(1, newTitle);
+            statement.setString(2, city);
+            statement.setString(3, address);
+            statement.setBigDecimal(4, new java.math.BigDecimal(nightlyRate));
+            statement.setString(5, sourceUrl);
+            statement.setString(6, oldTitle);
+            statement.executeUpdate();
+        }
+    }
+
+    private void addColumnIfMissing(Statement statement, String table, String column, String definition) throws SQLException {
+        statement.execute("ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS " + column + " " + definition);
     }
 
     private boolean hasRows(Connection connection, String tableName) throws SQLException {
@@ -107,26 +197,60 @@ public class AppStartupListener implements ServletContextListener {
         }
     }
 
-    private void insertProperty(Connection connection, String title, String city, String address, String nightlyRate, String imageUrl) throws SQLException {
+    private void insertPropertyIfMissing(Connection connection, String title, String city, String address, String nightlyRate, String imageUrl, String sourceUrl) throws SQLException {
+        try (PreparedStatement check = connection.prepareStatement("SELECT COUNT(*) FROM properties WHERE title = ?")) {
+            check.setString(1, title);
+            try (ResultSet rs = check.executeQuery()) {
+                rs.next();
+                if (rs.getInt(1) > 0) {
+                    return;
+                }
+            }
+        }
         try (PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO properties(title, city, address, nightly_rate, image_url) VALUES (?, ?, ?, ?, ?)")) {
+                "INSERT INTO properties(title, city, address, nightly_rate, image_url, source_url) VALUES (?, ?, ?, ?, ?, ?)")) {
             statement.setString(1, title);
             statement.setString(2, city);
             statement.setString(3, address);
             statement.setBigDecimal(4, new java.math.BigDecimal(nightlyRate));
             statement.setString(5, imageUrl);
+            statement.setString(6, sourceUrl);
             statement.executeUpdate();
         }
     }
 
-    private void insertBooking(Connection connection, long userId, long propertyId, String checkIn, String checkOut, String status) throws SQLException {
+    private long propertyId(Connection connection, String title) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT id FROM properties WHERE title = ?")) {
+            statement.setString(1, title);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Missing seeded property: " + title);
+                }
+                return rs.getLong("id");
+            }
+        }
+    }
+
+    private void insertBooking(Connection connection, long userId, long propertyId, String checkIn, String checkOut,
+                               String paymentMethod, String paymentStatus, String status) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO bookings(user_id, property_id, check_in, check_out, status) VALUES (?, ?, ?, ?, ?)")) {
+                """
+                        INSERT INTO bookings(user_id, property_id, check_in, check_out, nights, total_amount, payment_method, payment_status, status)
+                        SELECT ?, ?, ?, ?, DATEDIFF('DAY', CAST(? AS DATE), CAST(? AS DATE)), p.nightly_rate * DATEDIFF('DAY', CAST(? AS DATE), CAST(? AS DATE)), ?, ?, ?
+                        FROM properties p WHERE p.id = ?
+                        """)) {
             statement.setLong(1, userId);
             statement.setLong(2, propertyId);
             statement.setDate(3, java.sql.Date.valueOf(checkIn));
             statement.setDate(4, java.sql.Date.valueOf(checkOut));
-            statement.setString(5, status);
+            statement.setString(5, checkIn);
+            statement.setString(6, checkOut);
+            statement.setString(7, checkIn);
+            statement.setString(8, checkOut);
+            statement.setString(9, paymentMethod);
+            statement.setString(10, paymentStatus);
+            statement.setString(11, status);
+            statement.setLong(12, propertyId);
             statement.executeUpdate();
         }
     }

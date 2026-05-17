@@ -9,6 +9,7 @@ public class Property {
     private String address;
     private BigDecimal nightlyRate;
     private String imageUrl;
+    private String sourceUrl;
 
     public long getId() {
         return id;
@@ -56,5 +57,13 @@ public class Property {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getSourceUrl() {
+        return sourceUrl;
+    }
+
+    public void setSourceUrl(String sourceUrl) {
+        this.sourceUrl = sourceUrl;
     }
 }

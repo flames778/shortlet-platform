@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.LocalDate;
 
 public class UserDashboardServlet extends HttpServlet {
     private final BookingService bookingService = new BookingService();
@@ -23,6 +24,24 @@ public class UserDashboardServlet extends HttpServlet {
             request.setAttribute("properties", bookingService.searchProperties(city));
             request.setAttribute("city", city == null ? "" : city);
             request.getRequestDispatcher("/WEB-INF/views/user-dashboard.jsp").forward(request, response);
+        } catch (SQLException e) {
+            throw new ServletException(e);
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        User user = ServletUtil.currentUser(request);
+        try {
+            long propertyId = Long.parseLong(request.getParameter("propertyId"));
+            LocalDate checkIn = LocalDate.parse(request.getParameter("checkIn"));
+            LocalDate checkOut = LocalDate.parse(request.getParameter("checkOut"));
+            String paymentMethod = request.getParameter("paymentMethod");
+            bookingService.createBooking(user.getId(), propertyId, checkIn, checkOut, paymentMethod);
+            response.sendRedirect("/dashboard?booked=true");
+        } catch (IllegalArgumentException e) {
+            request.setAttribute("error", e.getMessage());
+            doGet(request, response);
         } catch (SQLException e) {
             throw new ServletException(e);
         }
