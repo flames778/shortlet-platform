@@ -16,6 +16,8 @@
         .brand-mark { width: 38px; height: 38px; border-radius: 10px; background: #16c79a; display: inline-grid; place-items: center; color: #041221; font-weight: 800; }
         .feature-icon { width: 44px; height: 44px; border-radius: 12px; background: #e9fff8; display: inline-grid; place-items: center; color: #087f63; font-weight: 800; }
         .property-card img { height: 220px; object-fit: cover; }
+        .partner-logo { height: 32px; filter: grayscale(100%); opacity: 0.5; }
+        .team-photo { width: 110px; height: 110px; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -46,6 +48,18 @@
 </header>
 
 <main>
+    <!-- Partners Section -->
+    <section class="py-4 border-bottom">
+        <div class="container text-center">
+            <div class="d-flex justify-content-center align-items-center gap-4 gap-md-5 flex-wrap">
+                <img src="/images/partners/jiji.jpg" alt="Jiji" class="partner-logo">
+                <img src="/images/partners/airbnb.jpg" alt="Airbnb" class="partner-logo">
+                <img src="/images/partners/google.jpg" alt="Google" class="partner-logo">
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
     <section class="py-5 bg-white">
         <div class="container">
             <div class="row g-4">
@@ -68,6 +82,47 @@
         </div>
     </section>
 
+    <!-- Team Section -->
+    <section class="py-5">
+        <div class="container text-center">
+            <h2 class="fw-bold mb-2">The Team Behind Shortlet</h2>
+            <p class="text-secondary mb-5">Meet the creators dedicated to elevating your short-term stay experience.</p>
+            <div class="row g-4 justify-content-center">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm h-100 py-4">
+                        <div class="card-body">
+                            <img src="/images/team/evans_davou.jpg" alt="Evans Davou" class="rounded-circle mb-3 team-photo">
+                            <h3 class="h5 fw-bold mb-1">Evans Davou</h3>
+                            <p class="text-success small fw-semibold mb-3">Full Stack Builder</p>
+                            <p class="text-secondary mb-0 small">Crafted the entire full-stack architecture, connecting Jakarta Servlets to H2 database and rendering dynamic JSPs.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm h-100 py-4">
+                        <div class="card-body">
+                            <img src="/images/team/sherifa_abdullahi.jpg" alt="Sherifa Abdullahi" class="rounded-circle mb-3 team-photo">
+                            <h3 class="h5 fw-bold mb-1">Sherifa Abdullahi</h3>
+                            <p class="text-success small fw-semibold mb-3">Frontend Engineer</p>
+                            <p class="text-secondary mb-0 small">Crafted the beautiful, highly-responsive user interfaces and custom Bootstrap style integrations.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm h-100 py-4">
+                        <div class="card-body">
+                            <img src="/images/team/ifechukwu_ibeleme.jpg" alt="Ifechukwu Ibeleme" class="rounded-circle mb-3 team-photo">
+                            <h3 class="h5 fw-bold mb-1">Ifechukwu Ibeleme</h3>
+                            <p class="text-success small fw-semibold mb-3">Product Architect</p>
+                            <p class="text-secondary mb-0 small">Designed the platform's core functional logic and streamlined secure check-in navigation workflows.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Properties Section -->
     <section id="properties" class="py-5">
         <div class="container">
             <div class="d-flex justify-content-between align-items-end mb-4">
