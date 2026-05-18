@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.time.format.DateTimeParseException;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -20,6 +21,7 @@ public class UserDashboardServlet extends HttpServlet {
     private final BookingService bookingService = new BookingService();
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         User user = ServletUtil.currentUser(request);
         
@@ -73,16 +75,24 @@ public class UserDashboardServlet extends HttpServlet {
             }
             
             // Record view for loaded properties to simulate real-time engagement!
-            for (Property p : properties) {
-                bookingService.recordPropertyView(p.getId());
-            }
+            bookingService.recordPropertyViews(properties.stream().map(Property::getId).toList());
             
             // Fetch Recommendations
             List<Property> recommendations = bookingService.getRecommendations(user.getId());
             
+            // Fetch Jiji Listings based on active city filter
+            com.shortlet.dao.JijiListingDAO jijiDAO = new com.shortlet.dao.JijiListingDAO();
+            List<com.shortlet.model.JijiListing> jijiListings;
+            if (city != null && !city.isBlank()) {
+                jijiListings = jijiDAO.searchActiveListings(city, 12, 0);
+            } else {
+                jijiListings = jijiDAO.getActiveListings(12, 0);
+            }
+            
             request.setAttribute("bookings", bookingService.findByUser(user.getId()));
             request.setAttribute("properties", properties);
             request.setAttribute("recommendations", recommendations);
+            request.setAttribute("jijiListings", jijiListings);
             request.setAttribute("city", city == null ? "" : city);
             request.setAttribute("maxPrice", maxPriceStr == null ? "" : maxPriceStr);
             request.setAttribute("wifi", wifi);
@@ -108,7 +118,7 @@ public class UserDashboardServlet extends HttpServlet {
             String paymentMethod = request.getParameter("paymentMethod");
             bookingService.createBooking(user.getId(), propertyId, checkIn, checkOut, paymentMethod);
             response.sendRedirect("/dashboard?booked=true");
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | DateTimeParseException e) {
             request.setAttribute("error", e.getMessage());
             doGet(request, response);
         } catch (SQLException e) {

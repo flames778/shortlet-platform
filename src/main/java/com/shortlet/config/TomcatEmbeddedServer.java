@@ -4,14 +4,25 @@ import com.shortlet.filter.AuthenticationFilter;
 import com.shortlet.servlet.AdminDashboardServlet;
 import com.shortlet.servlet.ErrorServlet;
 import com.shortlet.servlet.ExportExcelServlet;
+import com.shortlet.servlet.ForgotPasswordServlet;
 import com.shortlet.servlet.GoogleOAuthCallbackServlet;
 import com.shortlet.servlet.LandingServlet;
 import com.shortlet.servlet.LoginServlet;
+import com.shortlet.servlet.SearchServlet;
 import com.shortlet.servlet.LogoutServlet;
+import com.shortlet.servlet.SignupServlet;
 import com.shortlet.servlet.UserDashboardServlet;
 import com.shortlet.servlet.PropertyMarkersServlet;
 import com.shortlet.servlet.SearchSuggestionServlet;
 import com.shortlet.servlet.WishlistToggleServlet;
+import com.shortlet.servlet.JijiInquiryServlet;
+import com.shortlet.servlet.ForgotPasswordServlet;
+import com.shortlet.servlet.GoogleOAuthCallbackServlet;
+import com.shortlet.servlet.LandingServlet;
+import com.shortlet.servlet.LoginServlet;
+import com.shortlet.servlet.SearchServlet;
+import com.shortlet.servlet.LogoutServlet;
+import com.shortlet.servlet.SignupServlet;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.startup.Tomcat;
@@ -28,18 +39,30 @@ import java.util.jar.JarFile;
 public class TomcatEmbeddedServer {
     public static void main(String[] args) throws Exception {
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
-        Path webapp = extractWebapp();
+
+        // Development logic: Use src/main/webapp directly if it exists for instant JSP updates
+        Path webappPath = Path.of("src/main/webapp");
+        if (!Files.exists(webappPath)) {
+            webappPath = extractWebapp();
+        }
 
         Tomcat tomcat = new Tomcat();
         tomcat.setPort(port);
         tomcat.getConnector();
 
-        Context context = tomcat.addWebapp("", webapp.toAbsolutePath().toString());
+        Context context = tomcat.addWebapp("", webappPath.toAbsolutePath().toString());
         context.addApplicationListener(AppStartupListener.class.getName());
         context.setSessionCookieName("SHORTLET_SESSION");
 
         addServlet(context, "landing", new LandingServlet(), "");
+        context.addServletMappingDecoded("/home", "landing");
+        context.addServletMappingDecoded("/index", "landing");
+        addServlet(context, "search", new SearchServlet(), "/search");
         addServlet(context, "login", new LoginServlet(), "/login");
+        context.addServletMappingDecoded("/login.jsp", "login");
+        addServlet(context, "signup", new SignupServlet(), "/signup");
+        context.addServletMappingDecoded("/register", "signup");
+        context.addServletMappingDecoded("/signup.jsp", "signup");
         addServlet(context, "googleCallback", new GoogleOAuthCallbackServlet(), "/oauth2/google/callback");
         addServlet(context, "userDashboard", new UserDashboardServlet(), "/dashboard");
         addServlet(context, "adminDashboard", new AdminDashboardServlet(), "/admin");
@@ -49,10 +72,14 @@ public class TomcatEmbeddedServer {
         addServlet(context, "propertyMarkers", new PropertyMarkersServlet(), "/api/properties/markers");
         addServlet(context, "searchSuggestion", new SearchSuggestionServlet(), "/api/search/suggest");
         addServlet(context, "wishlistToggle", new WishlistToggleServlet(), "/wishlist/toggle");
+        addServlet(context, "jijiInquiry", new JijiInquiryServlet(), "/inquire");
+        addServlet(context, "forgotPassword", new ForgotPasswordServlet(), "/forgot-password");
+        addServlet(context, "googleLoginAlias", new LoginServlet(), "/oauth2/authorization/google");
 
         context.addFilterDef(AuthenticationFilter.definition());
         context.addFilterMap(AuthenticationFilter.map("/dashboard"));
         context.addFilterMap(AuthenticationFilter.map("/wishlist/toggle"));
+        context.addFilterMap(AuthenticationFilter.map("/inquire"));
         context.addFilterMap(AuthenticationFilter.map("/admin"));
         context.addFilterMap(AuthenticationFilter.map("/admin/*"));
 

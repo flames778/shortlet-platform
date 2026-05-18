@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=1200">
     <title>Dashboard - Shortlet Discover</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
@@ -343,7 +344,7 @@
             <c:if test="${not empty recommendations}">
                 <div class="mb-5">
                     <h3 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
-                        <span>✨</span> Recommended for you
+                        <i class="bi bi-sparkles text-warning me-1"></i> Recommended for you
                     </h3>
                     <div class="row g-3">
                         <c:forEach var="rec" items="${recommendations}">
@@ -351,7 +352,7 @@
                                 <div class="card border-0 shadow-sm h-100 property-card" id="property-rec-${rec.id}" style="min-height: 280px;">
                                     <div class="position-relative">
                                         <img src="${rec.imageUrl}" class="w-100 object-fit-cover" style="height: 120px;" alt="${rec.title}">
-                                        <span class="badge rating-badge position-absolute top-2 start-2">⭐ ${rec.rating}</span>
+                                        <span class="badge rating-badge position-absolute top-2 start-2"><i class="bi bi-star-fill text-warning me-1"></i> ${rec.rating}</span>
                                     </div>
                                     <div class="card-body p-3 d-flex flex-column justify-content-between">
                                         <div>
@@ -373,7 +374,7 @@
             <!-- Interactive Leaflet City Map -->
             <div class="mb-5">
                 <h3 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
-                    <span>🗺️</span> Interactive City Map
+                    <i class="bi bi-map text-success me-1"></i> Interactive City Map
                 </h3>
                 <div id="map"></div>
             </div>
@@ -474,10 +475,10 @@
 
                                     <!-- Badges Section (Ratings, reply speed, live views) -->
                                     <div class="d-flex flex-wrap gap-2 mb-4">
-                                        <span class="badge rating-badge rounded px-2.5 py-1">⭐ ${property.rating}</span>
+                                        <span class="badge rating-badge rounded px-2.5 py-1"><i class="bi bi-star-fill text-warning me-1"></i> ${property.rating}</span>
                                         <span class="badge badge-reply rounded px-2.5 py-1">${property.formattedReplyTime}</span>
                                         <c:if test="${property.urgencyViews > 0}">
-                                            <span class="badge badge-views rounded px-2.5 py-1">🔥 ${property.urgencyViews} people viewing this now</span>
+                                            <span class="badge badge-views rounded px-2.5 py-1"><i class="bi bi-fire text-danger me-1"></i> ${property.urgencyViews} people viewing this now</span>
                                         </c:if>
                                     </div>
                                 </div>
@@ -524,7 +525,71 @@
                     </div>
                 </c:forEach>
                 
-                <c:if test="${empty properties}">
+                <!-- Jiji Listings - Seamlessly Integrated inside same grid -->
+                <c:forEach var="jiji" items="${jijiListings}">
+                    <div class="col-md-6" id="jiji-listing-${jiji.id}">
+                        <div class="card property-card border-0 h-100 position-relative">
+                            
+                            <!-- Jiji Badge overlaid on top-left -->
+                            <span class="badge position-absolute top-2 start-2 px-3 py-1.5 rounded-pill shadow-sm" style="background-color: #00bcd4; color: #fff; font-weight: 600; font-size: 11px; z-index: 10;">From Jiji</span>
+
+                            <!-- Jiji Image Carousel container (with single image standard) -->
+                            <div class="carousel-container overflow-hidden">
+                                <div class="carousel-track" data-index="0">
+                                    <img class="carousel-image" src="${jiji.imageUrl}" alt="${jiji.title}" 
+                                         onerror="this.src='https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80'">
+                                </div>
+                            </div>
+
+                            <!-- Card Body -->
+                            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                        <h3 class="h5 fw-bold mb-0 text-slate-800 text-truncate" style="max-width: 200px;">${jiji.title}</h3>
+                                        <div class="text-end fw-bold text-success fs-5" style="font-size: 15px !important;">
+                                            ${jiji.priceText}
+                                        </div>
+                                    </div>
+                                    <p class="text-secondary small mb-3">${jiji.location}</p>
+
+                                    <!-- Badges Section matching native ones -->
+                                    <div class="d-flex flex-wrap gap-2 mb-4">
+                                        <span class="badge rating-badge rounded px-2.5 py-1"><i class="bi bi-star-fill text-warning me-1"></i> 4.5</span>
+                                        <span class="badge badge-reply rounded px-2.5 py-1">Verified on Jiji</span>
+                                        <span class="badge badge-views rounded px-2.5 py-1"><i class="bi bi-fire text-danger me-1"></i> 15 people viewing now</span>
+                                    </div>
+                                </div>
+
+                                <!-- Collapsible booking/inquiry section -->
+                                <div>
+                                    <button class="btn w-100 fw-bold rounded-pill py-2 shadow-sm text-white" style="background-color: #00bcd4; border-color: #00bcd4;" type="button" data-bs-toggle="collapse" data-bs-target="#jijiForm-${jiji.id}">
+                                        Inquire Apartment
+                                    </button>
+                                    
+                                    <div class="collapse" id="jijiForm-${jiji.id}">
+                                        <div class="p-3 mt-3 border bg-light rounded-3">
+                                            <p class="text-muted small mb-3" style="font-size: 12px; line-height: 1.5;">${not empty jiji.description ? jiji.description : 'No description available for this Jiji shortlet listing.'}</p>
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <a class="btn btn-outline-dark w-100 rounded-pill small py-2 px-3 d-flex align-items-center justify-content-center gap-1" style="font-size: 11px;" href="${jiji.jijiUrl}" target="_blank" rel="noopener">
+                                                        <i class="bi bi-box-arrow-up-right"></i> View on Jiji
+                                                    </a>
+                                                </div>
+                                                <div class="col-6">
+                                                    <button class="btn btn-dark w-100 rounded-pill small py-2 px-3 d-flex align-items-center justify-content-center gap-1" style="font-size: 11px;" onclick="inquireJiji(${jiji.id})">
+                                                        <i class="bi bi-chat-left-dots"></i> Send Inquiry
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </c:forEach>
+                
+                <c:if test="${empty properties && empty jijiListings}">
                     <div class="col-12">
                         <div class="text-center text-secondary py-5 bg-white rounded shadow-sm">
                             <p class="mb-0 fs-5">No properties found in your selection.</p>
@@ -582,7 +647,7 @@
                             
                             <!-- Policy Information -->
                             <div class="p-2.5 bg-light rounded-3 small text-secondary mb-3 d-flex align-items-center gap-1.5">
-                                <span class="fs-6">🛡️</span> <span>Free cancellation 24h prior to arrival</span>
+                                <i class="bi bi-shield-check text-success fs-6 me-1"></i> <span>Free cancellation 24h prior to arrival</span>
                             </div>
                             
                             <!-- Total and Manage actions -->
@@ -790,7 +855,55 @@
 
     // Manage Reservation alert details
     function showManageAlert() {
-        alert("🔒 Stay Management Policy Details:\n\n- Cancellation terms: Free cancellation is fully permitted up to 24 hours prior to check-in.\n- Re-scheduling support: Contact support@shortlet.com or message host directly to request date updates.");
+        alert("Stay Management Policy Details:\n\n- Cancellation terms: Free cancellation is fully permitted up to 24 hours prior to check-in.\n- Re-scheduling support: Contact support@shortlet.com or message host directly to request date updates.");
+    }
+
+    // Inquire about Jiji shortlet listings AJAX function
+    function inquireJiji(listingId) {
+        fetch('/inquire?listingId=' + listingId, {
+            method: 'POST'
+        })
+        .then(res => {
+            if (res.status === 401) {
+                alert("Please log in to inquire about Jiji shortlets.");
+                return;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                // Show a premium floating toast alert dynamically
+                var alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-info border-0 shadow-lg rounded-3 mb-4 d-flex align-items-center gap-2';
+                alertDiv.style.position = 'fixed';
+                alertDiv.style.bottom = '20px';
+                alertDiv.style.right = '20px';
+                alertDiv.style.zIndex = '9999';
+                alertDiv.style.maxWidth = '400px';
+                alertDiv.style.transition = 'all 0.5s ease-in-out';
+                alertDiv.innerHTML = `
+                    <span style="font-size: 1.25rem;">📬</span>
+                    <div>
+                        <strong>Inquiry Submitted!</strong>
+                        <div class="small mt-1">${data.message}</div>
+                    </div>
+                `;
+                document.body.appendChild(alertDiv);
+                
+                // Animate entrance and fadeout
+                setTimeout(() => {
+                    alertDiv.style.opacity = '0';
+                    alertDiv.style.transform = 'translateY(20px)';
+                    setTimeout(() => alertDiv.remove(), 600);
+                }, 5000);
+            } else if (data && data.error) {
+                alert("Inquiry failed: " + data.error);
+            }
+        })
+        .catch(err => {
+            console.error("Error submitting Jiji inquiry:", err);
+            alert("An error occurred. Please try again.");
+        });
     }
 </script>
 </body>

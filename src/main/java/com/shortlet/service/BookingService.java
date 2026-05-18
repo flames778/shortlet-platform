@@ -69,6 +69,21 @@ public class BookingService {
         return properties;
     }
 
+    public List<Property> getFeaturedProperties(int limit) throws SQLException {
+        List<Property> properties = new ArrayList<>();
+        String sql = "SELECT * FROM properties WHERE featured = TRUE OR rating >= 4.7 ORDER BY rating DESC LIMIT ?";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    properties.add(mapProperty(rs));
+                }
+            }
+        }
+        return properties;
+    }
+
     public Optional<Property> findPropertyById(long propertyId) throws SQLException {
         String sql = "SELECT * FROM properties WHERE id = ?";
         try (Connection connection = DatabaseUtil.getConnection();
@@ -122,7 +137,7 @@ public class BookingService {
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 keys.next();
                 long bookingId = keys.getLong(1);
-                return queryBookings("""
+                List<Booking> results = queryBookings("""
                         SELECT b.id, b.user_id, u.name AS user_name, u.email AS user_email, u.password_hash,
                                p.title AS apartment_title, p.city, p.nightly_rate,
                                b.check_in, b.check_out, b.nights, b.total_amount, b.payment_method, b.payment_status,
@@ -131,7 +146,11 @@ public class BookingService {
                         JOIN users u ON u.id = b.user_id
                         JOIN properties p ON p.id = b.property_id
                         WHERE b.id = ?
-                        """, bookingId).get(0);
+                        """, bookingId);
+                if (results.isEmpty()) {
+                    throw new SQLException("Failed to retrieve created booking.");
+                }
+                return results.get(0);
             }
         }
     }
@@ -338,7 +357,7 @@ public class BookingService {
             fallbackSql.append("SELECT p.*, ");
             fallbackSql.append("       (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted ");
             fallbackSql.append("FROM properties p ");
-            fallbackSql.append("WHERE p.id NOT IN (0 ");
+            fallbackSql.append("WHERE p.id NOT IN (-1 ");
             for (Property r : recommended) {
                 fallbackSql.append(", ").append(r.getId());
             }
@@ -365,17 +384,18 @@ public class BookingService {
     public boolean toggleWishlist(long userId, long propertyId) throws SQLException {
         boolean exists = false;
         String checkSql = "SELECT COUNT(*) FROM wishlist WHERE user_id = ? AND property_id = ?";
-        try (Connection connection = DatabaseUtil.getConnection();
-             PreparedStatement statement = connection.prepareStatement(checkSql)) {
-            statement.setLong(1, userId);
-            statement.setLong(2, propertyId);
-            try (ResultSet rs = statement.executeQuery()) {
-                rs.next();
-                exists = rs.getInt(1) > 0;
-            }
-        }
         
         try (Connection connection = DatabaseUtil.getConnection()) {
+            try (PreparedStatement statement = connection.prepareStatement(checkSql)) {
+                statement.setLong(1, userId);
+                statement.setLong(2, propertyId);
+                try (ResultSet rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        exists = rs.getInt(1) > 0;
+                    }
+                }
+            }
+
             if (exists) {
                 String deleteSql = "DELETE FROM wishlist WHERE user_id = ? AND property_id = ?";
                 try (PreparedStatement statement = connection.prepareStatement(deleteSql)) {
@@ -427,6 +447,65 @@ public class BookingService {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, propertyId);
             statement.executeUpdate();
+        }
+    }
+
+    public List<java.util.Map<String, Object>> getAllTeamMembers() throws SQLException {
+        List<java.util.Map<String, Object>> team = new ArrayList<>();
+        String sql = "SELECT * FROM team_members ORDER BY id";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                java.util.Map<String, Object> member = new java.util.HashMap<>();
+                member.put("name", rs.getString("name"));
+                member.put("role", rs.getString("role"));
+                member.put("bio", rs.getString("bio"));
+                member.put("imageUrl", rs.getString("image_url"));
+                team.add(member);
+            }
+        }
+        return team;
+    }
+
+    public List<java.util.Map<String, Object>> getRecentTestimonials(int limit) throws SQLException {
+        List<java.util.Map<String, Object>> testimonials = new ArrayList<>();
+        String sql = """
+            SELECT t.*, p.id AS p_id, p.title AS property_title, p.image_url AS property_image_url
+            FROM testimonials t
+            LEFT JOIN properties p ON t.property_id = p.id
+            ORDER BY t.id DESC LIMIT ?
+            """;
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    java.util.Map<String, Object> t = new java.util.HashMap<>();
+                    t.put("guestName", rs.getString("guest_name"));
+                    t.put("location", rs.getString("location"));
+                    t.put("rating", rs.getInt("rating"));
+                    t.put("quote", rs.getString("quote"));
+                    t.put("propertyId", rs.getObject("property_id") != null ? rs.getLong("p_id") : null);
+                    t.put("propertyTitle", rs.getString("property_title"));
+                    t.put("propertyImageUrl", rs.getString("property_image_url"));
+                    testimonials.add(t);
+                }
+            }
+        }
+        return testimonials;
+    }
+
+    public void recordPropertyViews(List<Long> propertyIds) throws SQLException {
+        if (propertyIds == null || propertyIds.isEmpty()) return;
+        String sql = "INSERT INTO property_views(property_id) VALUES (?)";
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (long id : propertyIds) {
+                statement.setLong(1, id);
+                statement.addBatch();
+            }
+            statement.executeBatch();
         }
     }
 

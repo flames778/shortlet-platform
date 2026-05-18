@@ -4,3 +4,5 @@ tomcat.*/
 .DS_Store
 *.log
 *.class
+.vscode/
+.idea/
