@@ -200,55 +200,61 @@ public class BookingService {
 
     public List<Property> searchPropertiesWithFilters(String city, Double maxPrice, Boolean wifi, Boolean selfCheckIn, Boolean nearAirport, String sortBy, Long currentUserId) throws SQLException {
         List<Property> properties = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("SELECT p.*, ");
-        sql.append(" (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted, ");
-        sql.append(" (SELECT COUNT(*) FROM property_views pv WHERE pv.property_id = p.id AND pv.viewed_at >= DATEADD('MINUTE', -30, NOW())) AS view_count ");
-        sql.append(" FROM properties p WHERE 1=1 ");
-        
-        List<Object> params = new ArrayList<>();
-        params.add(currentUserId);
-        
-        if (city != null && !city.isBlank()) {
-            sql.append(" AND LOWER(p.city) LIKE ? ");
-            params.add("%" + city.toLowerCase() + "%");
-        }
-        if (maxPrice != null) {
-            sql.append(" AND p.nightly_rate <= ? ");
-            params.add(BigDecimal.valueOf(maxPrice));
-        }
-        if (wifi != null && wifi) {
-            sql.append(" AND p.wifi = TRUE ");
-        }
-        if (selfCheckIn != null && selfCheckIn) {
-            sql.append(" AND p.self_check_in = TRUE ");
-        }
-        if (nearAirport != null && nearAirport) {
-            sql.append(" AND p.near_airport = TRUE ");
-        }
-        
-        if (sortBy != null) {
-            switch (sortBy) {
-                case "price_asc" -> sql.append(" ORDER BY p.nightly_rate ASC ");
-                case "price_desc" -> sql.append(" ORDER BY p.nightly_rate DESC ");
-                case "rating" -> sql.append(" ORDER BY p.rating DESC ");
-                default -> sql.append(" ORDER BY p.nightly_rate ASC ");
+        try (Connection connection = DatabaseUtil.getConnection()) {
+            String dbName = connection.getMetaData().getDatabaseProductName().toLowerCase();
+            String recentViewsCutoff = dbName.contains("sqlite")
+                    ? "datetime('now', '-30 minutes')"
+                    : "DATEADD('MINUTE', -30, NOW())";
+
+            StringBuilder sql = new StringBuilder("SELECT p.*, ");
+            sql.append(" (SELECT COUNT(*) FROM wishlist w WHERE w.property_id = p.id AND w.user_id = ?) AS is_wishlisted, ");
+            sql.append(" (SELECT COUNT(*) FROM property_views pv WHERE pv.property_id = p.id AND pv.viewed_at >= ").append(recentViewsCutoff).append(") AS view_count ");
+            sql.append(" FROM properties p WHERE 1=1 ");
+
+            List<Object> params = new ArrayList<>();
+            params.add(currentUserId);
+
+            if (city != null && !city.isBlank()) {
+                sql.append(" AND LOWER(p.city) LIKE ? ");
+                params.add("%" + city.toLowerCase() + "%");
             }
-        } else {
-            sql.append(" ORDER BY p.nightly_rate ASC ");
-        }
-        
-        try (Connection connection = DatabaseUtil.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                statement.setObject(i + 1, params.get(i));
+            if (maxPrice != null) {
+                sql.append(" AND p.nightly_rate <= ? ");
+                params.add(BigDecimal.valueOf(maxPrice));
             }
-            try (ResultSet rs = statement.executeQuery()) {
-                while (rs.next()) {
-                    Property property = mapProperty(rs);
-                    property.setIsWishlisted(rs.getInt("is_wishlisted") > 0);
-                    property.setUrgencyViews(rs.getInt("view_count"));
-                    property.setImages(getPropertyImages(property.getId()));
-                    properties.add(property);
+            if (wifi != null && wifi) {
+                sql.append(" AND p.wifi = TRUE ");
+            }
+            if (selfCheckIn != null && selfCheckIn) {
+                sql.append(" AND p.self_check_in = TRUE ");
+            }
+            if (nearAirport != null && nearAirport) {
+                sql.append(" AND p.near_airport = TRUE ");
+            }
+
+            if (sortBy != null) {
+                switch (sortBy) {
+                    case "price_asc" -> sql.append(" ORDER BY p.nightly_rate ASC ");
+                    case "price_desc" -> sql.append(" ORDER BY p.nightly_rate DESC ");
+                    case "rating" -> sql.append(" ORDER BY p.rating DESC ");
+                    default -> sql.append(" ORDER BY p.nightly_rate ASC ");
+                }
+            } else {
+                sql.append(" ORDER BY p.nightly_rate ASC ");
+            }
+
+            try (PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+                for (int i = 0; i < params.size(); i++) {
+                    statement.setObject(i + 1, params.get(i));
+                }
+                try (ResultSet rs = statement.executeQuery()) {
+                    while (rs.next()) {
+                        Property property = mapProperty(rs);
+                        property.setIsWishlisted(rs.getInt("is_wishlisted") > 0);
+                        property.setUrgencyViews(rs.getInt("view_count"));
+                        property.setImages(getPropertyImages(property.getId()));
+                        properties.add(property);
+                    }
                 }
             }
         }

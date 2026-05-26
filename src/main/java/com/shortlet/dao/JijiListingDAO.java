@@ -10,13 +10,27 @@ import java.util.List;
 public class JijiListingDAO {
 
     public void saveOrUpdate(JijiListing listing) {
-        String sql = """
-            MERGE INTO jiji_listings(jiji_url, title, price_numeric, price_text, location, description, image_url, is_active)
-            KEY(jiji_url)
-            VALUES(?, ?, ?, ?, ?, ?, ?, TRUE)
-            """;
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            String dbName = conn.getMetaData().getDatabaseProductName().toLowerCase();
+            String sql = dbName.contains("sqlite") ? """
+                INSERT INTO jiji_listings(jiji_url, title, price_numeric, price_text, location, description, image_url, is_active)
+                VALUES(?, ?, ?, ?, ?, ?, ?, TRUE)
+                ON CONFLICT(jiji_url) DO UPDATE SET
+                    title = excluded.title,
+                    price_numeric = excluded.price_numeric,
+                    price_text = excluded.price_text,
+                    location = excluded.location,
+                    description = excluded.description,
+                    image_url = excluded.image_url,
+                    scraped_at = CURRENT_TIMESTAMP,
+                    is_active = TRUE
+                """ : """
+                MERGE INTO jiji_listings(jiji_url, title, price_numeric, price_text, location, description, image_url, is_active)
+                KEY(jiji_url)
+                VALUES(?, ?, ?, ?, ?, ?, ?, TRUE)
+                """;
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, listing.getJijiUrl());
             stmt.setString(2, listing.getTitle());
             stmt.setBigDecimal(3, listing.getPriceNumeric());
@@ -25,6 +39,7 @@ public class JijiListingDAO {
             stmt.setString(6, listing.getDescription());
             stmt.setString(7, listing.getImageUrl());
             stmt.executeUpdate();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
